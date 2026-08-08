@@ -181,11 +181,15 @@ export default function ClosetPage() {
     const typeItems = clothes.filter(
       (c) => c.type === type && (isDirty ? c.is_dirty : !c.is_dirty)
     )
-    const uncategorized = typeItems.filter((c) => !c.subcategory_id)
-
     return (
       <div key={type} className="space-y-6 pb-8 border-b last:border-b-0">
         <h2 className="text-2xl font-bold capitalize">{type}s</h2>
+
+        {typeSubcategories.length === 0 && (
+          <p className="ml-4 text-gray-600 dark:text-gray-400 text-sm">
+            Crea una categoría para empezar a agregar {type}s
+          </p>
+        )}
 
         {typeSubcategories.map((sub) => {
           const items = typeItems.filter((c) => c.subcategory_id === sub.id)
@@ -209,16 +213,6 @@ export default function ClosetPage() {
             </div>
           )
         })}
-
-        <div className="ml-4 space-y-3 border-l-2 border-gray-200 dark:border-gray-700 pl-4">
-          {typeSubcategories.length > 0 && (
-            <h3 className="text-lg font-semibold text-gray-500">Sin categoría</h3>
-          )}
-          {renderItemsGrid(uncategorized)}
-          {!isDirty && (
-            <TypedUploadForm type={type} onUpload={handleAddClothing} />
-          )}
-        </div>
 
         {!isDirty && (
           <div className="ml-4 flex gap-2">
