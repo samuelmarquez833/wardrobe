@@ -1,8 +1,12 @@
 import Database from 'better-sqlite3'
 import path from 'path'
+import { mkdirSync } from 'fs'
 import { Clothing, Outfit } from './types'
 
-const dbPath = path.join(process.cwd(), 'db', 'clothes.sqlite')
+const dbDir = path.join(process.cwd(), 'db')
+mkdirSync(dbDir, { recursive: true })
+
+const dbPath = path.join(dbDir, 'clothes.sqlite')
 const db = new Database(dbPath)
 
 db.pragma('journal_mode = WAL')
