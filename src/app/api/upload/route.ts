@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const uploadsDir = path.join(process.cwd(), 'public', 'uploads')
+    const uploadsDir = path.join(process.cwd(), 'uploads')
     mkdirSync(uploadsDir, { recursive: true })
 
     const buffer = await file.arrayBuffer()
@@ -31,7 +31,7 @@ export async function POST(request: NextRequest) {
 
     const clothing: Clothing = {
       id: Date.now().toString(),
-      image_url: `/uploads/${filename}`,
+      image_url: `/api/images/${filename}`,
       type: type as any,
       created_at: new Date().toISOString(),
       is_dirty: false,

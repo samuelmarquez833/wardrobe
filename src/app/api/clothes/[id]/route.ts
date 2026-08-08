@@ -13,8 +13,9 @@ export async function DELETE(
     const { id } = await params
     const clothing = getClothingById(id)
 
-    if (clothing?.image_url.startsWith('/uploads/')) {
-      const filepath = path.join(process.cwd(), 'public', clothing.image_url)
+    if (clothing?.image_url.startsWith('/api/images/')) {
+      const filename = clothing.image_url.replace('/api/images/', '')
+      const filepath = path.join(process.cwd(), 'uploads', filename)
       if (existsSync(filepath)) {
         unlinkSync(filepath)
       }
