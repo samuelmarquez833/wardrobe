@@ -4,6 +4,9 @@
 .pnp.js
 .yarn/install-state.gz
 
+
+# samuel
+/fotos de prueba/
 # testing
 /coverage
 
