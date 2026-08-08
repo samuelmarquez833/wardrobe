@@ -2,20 +2,27 @@
 
 import { useState, useMemo } from 'react'
 import Image from 'next/image'
-import { Clothing, Outfit } from '@/lib/types'
+import { Clothing, Outfit, Subcategory } from '@/lib/types'
 
 interface SliderOutfitCreatorProps {
   clothes: Clothing[]
+  subcategories: Subcategory[]
   onSave?: (outfit: Outfit) => void
 }
 
-export function SliderOutfitCreator({ clothes, onSave }: SliderOutfitCreatorProps) {
-  const [selectedIndices, setSelectedIndices] = useState([0, 1, 0])
+const SLOT_TYPES = ['top', 'bottom', 'shoes'] as const
+
+export function SliderOutfitCreator({ clothes, subcategories, onSave }: SliderOutfitCreatorProps) {
+  const [selectedIndices, setSelectedIndices] = useState([0, 0, 0])
+  const [selectedSubcat, setSelectedSubcat] = useState<(string | null)[]>([null, null, null])
   const [outfitName, setOutfitName] = useState('')
 
-  const topClothes = clothes.filter((c) => c.type === 'top')
-  const bottomClothes = clothes.filter((c) => c.type === 'bottom')
-  const shoeClothes = clothes.filter((c) => c.type === 'shoes')
+  const clothesLists = SLOT_TYPES.map((type, slotIndex) =>
+    clothes.filter(
+      (c) => c.type === type && (selectedSubcat[slotIndex] ? c.subcategory_id === selectedSubcat[slotIndex] : true)
+    )
+  )
+  const [topClothes, bottomClothes, shoeClothes] = clothesLists
 
   const currentTop = topClothes[selectedIndices[0] % topClothes.length]
   const currentBottom = bottomClothes[selectedIndices[1] % bottomClothes.length]
@@ -23,8 +30,7 @@ export function SliderOutfitCreator({ clothes, onSave }: SliderOutfitCreatorProp
 
   const handleSlider = (index: number, direction: 'prev' | 'next') => {
     const newIndices = [...selectedIndices]
-    const maxLengths = [topClothes.length, bottomClothes.length, shoeClothes.length]
-    const maxIndex = maxLengths[index]
+    const maxIndex = clothesLists[index].length
 
     if (direction === 'prev') {
       newIndices[index] = (newIndices[index] - 1 + maxIndex) % maxIndex
@@ -32,6 +38,16 @@ export function SliderOutfitCreator({ clothes, onSave }: SliderOutfitCreatorProp
       newIndices[index] = (newIndices[index] + 1) % maxIndex
     }
 
+    setSelectedIndices(newIndices)
+  }
+
+  const handleSubcatChange = (slotIndex: number, subcatId: string) => {
+    const newSubcat = [...selectedSubcat]
+    newSubcat[slotIndex] = subcatId || null
+    setSelectedSubcat(newSubcat)
+
+    const newIndices = [...selectedIndices]
+    newIndices[slotIndex] = 0
     setSelectedIndices(newIndices)
   }
 
@@ -65,8 +81,7 @@ export function SliderOutfitCreator({ clothes, onSave }: SliderOutfitCreatorProp
   }
 
   const getClothingForSlot = (slotIndex: number) => {
-    const allClothes = [topClothes, bottomClothes, shoeClothes]
-    const clothesList = allClothes[slotIndex]
+    const clothesList = clothesLists[slotIndex]
     const currentIdx = selectedIndices[slotIndex] % clothesList.length
 
     const prevIdx = (currentIdx - 1 + clothesList.length) % clothesList.length
@@ -84,6 +99,8 @@ export function SliderOutfitCreator({ clothes, onSave }: SliderOutfitCreatorProp
     slotIndex: number
   ) => {
     const { prev, current, next } = getClothingForSlot(slotIndex)
+    const type = SLOT_TYPES[slotIndex]
+    const typeSubcategories = subcategories.filter((s) => s.type === type)
 
     const ClothingItem = ({ item, position }: { item: Clothing; position: 'prev' | 'current' | 'next' }) => {
       const isCenter = position === 'current'
@@ -115,7 +132,23 @@ export function SliderOutfitCreator({ clothes, onSave }: SliderOutfitCreatorProp
 
     return (
       <div className="space-y-3">
-        <h3 className="font-semibold text-center">{title}</h3>
+        <div className="flex items-center justify-center gap-2">
+          <h3 className="font-semibold text-center">{title}</h3>
+          {typeSubcategories.length > 0 && (
+            <select
+              value={selectedSubcat[slotIndex] || ''}
+              onChange={(e) => handleSubcatChange(slotIndex, e.target.value)}
+              className="text-sm px-2 py-1 border rounded dark:bg-gray-800 dark:border-gray-700"
+            >
+              <option value="">Todos</option>
+              {typeSubcategories.map((sub) => (
+                <option key={sub.id} value={sub.id}>
+                  {sub.name}
+                </option>
+              ))}
+            </select>
+          )}
+        </div>
         <div className="flex gap-2 items-center justify-center">
           <ClothingItem item={prev} position="prev" />
           <ClothingItem item={current} position="current" />

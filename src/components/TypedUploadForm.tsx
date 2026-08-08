@@ -5,10 +5,11 @@ import { Clothing } from '@/lib/types'
 
 interface TypedUploadFormProps {
   type: 'top' | 'bottom' | 'shoes'
+  subcategoryId?: string
   onUpload?: (clothing: Clothing) => void
 }
 
-export function TypedUploadForm({ type, onUpload }: TypedUploadFormProps) {
+export function TypedUploadForm({ type, subcategoryId, onUpload }: TypedUploadFormProps) {
   const [isDragging, setIsDragging] = useState(false)
   const [uploading, setUploading] = useState(false)
 
@@ -42,6 +43,9 @@ export function TypedUploadForm({ type, onUpload }: TypedUploadFormProps) {
       const formData = new FormData()
       formData.append('file', file)
       formData.append('type', type)
+      if (subcategoryId) {
+        formData.append('subcategory_id', subcategoryId)
+      }
 
       const res = await fetch('/api/upload', {
         method: 'POST',
@@ -59,6 +63,8 @@ export function TypedUploadForm({ type, onUpload }: TypedUploadFormProps) {
     }
   }
 
+  const inputId = `file-upload-${type}-${subcategoryId || 'none'}`
+
   return (
     <div
       onDragOver={handleDragOver}
@@ -75,10 +81,10 @@ export function TypedUploadForm({ type, onUpload }: TypedUploadFormProps) {
         accept="image/*"
         onChange={handleChange}
         className="hidden"
-        id={`file-upload-${type}`}
+        id={inputId}
         disabled={uploading}
       />
-      <label htmlFor={`file-upload-${type}`} className="cursor-pointer">
+      <label htmlFor={inputId} className="cursor-pointer">
         <p className="font-semibold mb-1">
           {uploading ? 'Subiendo...' : `+ Agregar ${type}`}
         </p>

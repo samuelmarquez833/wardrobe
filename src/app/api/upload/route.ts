@@ -11,6 +11,7 @@ export async function POST(request: NextRequest) {
     const formData = await request.formData()
     const file = formData.get('file') as File
     const type = formData.get('type') as string
+    const subcategoryId = formData.get('subcategory_id') as string | null
 
     if (!file || !type) {
       return NextResponse.json(
@@ -33,6 +34,7 @@ export async function POST(request: NextRequest) {
       id: Date.now().toString(),
       image_url: `/api/images/${filename}`,
       type: type as any,
+      subcategory_id: subcategoryId || null,
       created_at: new Date().toISOString(),
       is_dirty: false,
     }
