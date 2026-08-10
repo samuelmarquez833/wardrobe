@@ -20,6 +20,9 @@ export default function OutfitsPage() {
       ])
       const outfitsData = await outfitsRes.json()
       const clothesData = await clothesRes.json()
+      if (!Array.isArray(outfitsData) || !Array.isArray(clothesData)) {
+        throw new Error(outfitsData?.error || clothesData?.error || 'Bad response')
+      }
       setOutfits(outfitsData)
       setClothes(clothesData)
     } catch (error) {

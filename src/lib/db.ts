@@ -1,143 +1,159 @@
-import Database from 'better-sqlite3'
-import path from 'path'
-import { mkdirSync } from 'fs'
+import { supabase, BUCKET } from './supabase'
 import { Clothing, Outfit, Subcategory } from './types'
 
-const dbDir = path.join(process.cwd(), 'db')
-mkdirSync(dbDir, { recursive: true })
+const USER_ID = 'default'
 
-const dbPath = path.join(dbDir, 'clothes.sqlite')
-const db = new Database(dbPath)
-
-db.pragma('journal_mode = WAL')
-
-export function initDb() {
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS clothes (
-      id TEXT PRIMARY KEY,
-      image_url TEXT NOT NULL,
-      color TEXT,
-      type TEXT NOT NULL,
-      is_dirty INTEGER DEFAULT 0,
-      created_at TEXT NOT NULL,
-      user_id TEXT DEFAULT 'default'
-    );
-
-    CREATE TABLE IF NOT EXISTS outfits (
-      id TEXT PRIMARY KEY,
-      clothes_ids TEXT NOT NULL,
-      name TEXT,
-      created_at TEXT NOT NULL,
-      user_id TEXT DEFAULT 'default'
-    );
-
-    CREATE TABLE IF NOT EXISTS subcategories (
-      id TEXT PRIMARY KEY,
-      type TEXT NOT NULL,
-      name TEXT NOT NULL,
-      created_at TEXT NOT NULL,
-      user_id TEXT DEFAULT 'default'
-    );
-
-    CREATE INDEX IF NOT EXISTS idx_clothes_user ON clothes(user_id);
-    CREATE INDEX IF NOT EXISTS idx_outfits_user ON outfits(user_id);
-    CREATE INDEX IF NOT EXISTS idx_subcategories_user ON subcategories(user_id);
-  `)
-
-  const columns = db.prepare("PRAGMA table_info(clothes)").all() as { name: string }[]
-  if (!columns.some(c => c.name === 'subcategory_id')) {
-    db.exec('ALTER TABLE clothes ADD COLUMN subcategory_id TEXT')
-  }
+function unwrap<T>(data: T | null, error: { message: string } | null, what: string): T {
+  if (error) throw new Error(`${what}: ${error.message}`)
+  return data as T
 }
 
-export function addClothing(clothing: Clothing): Clothing {
-  const stmt = db.prepare(`
-    INSERT INTO clothes (id, image_url, color, type, subcategory_id, is_dirty, created_at, user_id)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-  `)
-  stmt.run(
-    clothing.id,
-    clothing.image_url,
-    clothing.color,
-    clothing.type,
-    clothing.subcategory_id || null,
-    clothing.is_dirty ? 1 : 0,
-    clothing.created_at,
-    'default'
-  )
-  return clothing
+export async function addClothing(clothing: Clothing): Promise<Clothing> {
+  const { data, error } = await supabase
+    .from('clothes')
+    .insert({
+      id: clothing.id,
+      image_url: clothing.image_url,
+      image_path: clothing.image_path ?? null,
+      color: clothing.color ?? null,
+      type: clothing.type,
+      subcategory_id: clothing.subcategory_id || null,
+      is_dirty: clothing.is_dirty ?? false,
+      created_at: clothing.created_at,
+      user_id: USER_ID,
+    })
+    .select()
+    .single()
+
+  return unwrap(data, error, 'addClothing')
 }
 
-export function getClothes(): Clothing[] {
-  const stmt = db.prepare('SELECT * FROM clothes WHERE user_id = ? ORDER BY created_at DESC')
-  const rows = stmt.all('default') as any[]
-  return rows.map(row => ({
-    ...row,
-    is_dirty: row.is_dirty === 1,
-  }))
+export async function getClothes(): Promise<Clothing[]> {
+  const { data, error } = await supabase
+    .from('clothes')
+    .select('*')
+    .eq('user_id', USER_ID)
+    .order('created_at', { ascending: false })
+
+  return unwrap(data, error, 'getClothes')
 }
 
-export function getClothingById(id: string): Clothing | undefined {
-  const stmt = db.prepare('SELECT * FROM clothes WHERE id = ? AND user_id = ?')
-  const row = stmt.get(id, 'default') as any
-  if (!row) return undefined
-  return { ...row, is_dirty: row.is_dirty === 1 }
+export async function getClothingById(id: string): Promise<Clothing | undefined> {
+  const { data, error } = await supabase
+    .from('clothes')
+    .select('*')
+    .eq('id', id)
+    .eq('user_id', USER_ID)
+    .maybeSingle()
+
+  if (error) throw new Error(`getClothingById: ${error.message}`)
+  return data ?? undefined
 }
 
-export function deleteClothing(id: string): void {
-  const stmt = db.prepare('DELETE FROM clothes WHERE id = ? AND user_id = ?')
-  stmt.run(id, 'default')
+export async function deleteClothing(id: string): Promise<void> {
+  const { error } = await supabase
+    .from('clothes')
+    .delete()
+    .eq('id', id)
+    .eq('user_id', USER_ID)
+
+  if (error) throw new Error(`deleteClothing: ${error.message}`)
 }
 
-export function toggleDirty(id: string): void {
-  const stmt = db.prepare(`
-    UPDATE clothes SET is_dirty = 1 - is_dirty
-    WHERE id = ? AND user_id = ?
-  `)
-  stmt.run(id, 'default')
+export async function deleteImage(imagePath: string): Promise<void> {
+  const { error } = await supabase.storage.from(BUCKET).remove([imagePath])
+  if (error) throw new Error(`deleteImage: ${error.message}`)
 }
 
-export function addOutfit(outfit: Outfit): Outfit {
-  const stmt = db.prepare(`
-    INSERT INTO outfits (id, clothes_ids, name, created_at, user_id)
-    VALUES (?, ?, ?, ?, ?)
-  `)
-  const clothesIdsStr = JSON.stringify(outfit.clothes_ids)
-  stmt.run(outfit.id, clothesIdsStr, outfit.name, outfit.created_at, 'default')
-  return outfit
+export async function toggleDirty(id: string): Promise<void> {
+  const current = await getClothingById(id)
+  if (!current) return
+
+  const { error } = await supabase
+    .from('clothes')
+    .update({ is_dirty: !current.is_dirty })
+    .eq('id', id)
+    .eq('user_id', USER_ID)
+
+  if (error) throw new Error(`toggleDirty: ${error.message}`)
 }
 
-export function getOutfits(): Outfit[] {
-  const stmt = db.prepare('SELECT * FROM outfits WHERE user_id = ? ORDER BY created_at DESC')
-  const rows = stmt.all('default') as any[]
-  return rows.map(row => ({
-    ...row,
-    clothes_ids: JSON.parse(row.clothes_ids),
-  }))
+export async function addOutfit(outfit: Outfit): Promise<Outfit> {
+  const { data, error } = await supabase
+    .from('outfits')
+    .insert({
+      id: outfit.id,
+      clothes_ids: outfit.clothes_ids,
+      name: outfit.name ?? null,
+      created_at: outfit.created_at,
+      user_id: USER_ID,
+    })
+    .select()
+    .single()
+
+  return unwrap(data, error, 'addOutfit')
 }
 
-export function deleteOutfit(id: string): void {
-  const stmt = db.prepare('DELETE FROM outfits WHERE id = ? AND user_id = ?')
-  stmt.run(id, 'default')
+export async function getOutfits(): Promise<Outfit[]> {
+  const { data, error } = await supabase
+    .from('outfits')
+    .select('*')
+    .eq('user_id', USER_ID)
+    .order('created_at', { ascending: false })
+
+  return unwrap(data, error, 'getOutfits')
 }
 
-export function addSubcategory(subcategory: Subcategory): Subcategory {
-  const stmt = db.prepare(`
-    INSERT INTO subcategories (id, type, name, created_at, user_id)
-    VALUES (?, ?, ?, ?, ?)
-  `)
-  stmt.run(subcategory.id, subcategory.type, subcategory.name, subcategory.created_at, 'default')
-  return subcategory
+export async function deleteOutfit(id: string): Promise<void> {
+  const { error } = await supabase
+    .from('outfits')
+    .delete()
+    .eq('id', id)
+    .eq('user_id', USER_ID)
+
+  if (error) throw new Error(`deleteOutfit: ${error.message}`)
 }
 
-export function getSubcategories(): Subcategory[] {
-  const stmt = db.prepare('SELECT * FROM subcategories WHERE user_id = ? ORDER BY created_at ASC')
-  return stmt.all('default') as Subcategory[]
+export async function addSubcategory(subcategory: Subcategory): Promise<Subcategory> {
+  const { data, error } = await supabase
+    .from('subcategories')
+    .insert({
+      id: subcategory.id,
+      type: subcategory.type,
+      name: subcategory.name,
+      created_at: subcategory.created_at,
+      user_id: USER_ID,
+    })
+    .select()
+    .single()
+
+  return unwrap(data, error, 'addSubcategory')
 }
 
-export function deleteSubcategory(id: string): void {
-  const stmt = db.prepare('DELETE FROM subcategories WHERE id = ? AND user_id = ?')
-  stmt.run(id, 'default')
-  const clearStmt = db.prepare('UPDATE clothes SET subcategory_id = NULL WHERE subcategory_id = ? AND user_id = ?')
-  clearStmt.run(id, 'default')
+export async function getSubcategories(): Promise<Subcategory[]> {
+  const { data, error } = await supabase
+    .from('subcategories')
+    .select('*')
+    .eq('user_id', USER_ID)
+    .order('created_at', { ascending: true })
+
+  return unwrap(data, error, 'getSubcategories')
+}
+
+export async function deleteSubcategory(id: string): Promise<void> {
+  const { error } = await supabase
+    .from('subcategories')
+    .delete()
+    .eq('id', id)
+    .eq('user_id', USER_ID)
+
+  if (error) throw new Error(`deleteSubcategory: ${error.message}`)
+
+  const { error: clearError } = await supabase
+    .from('clothes')
+    .update({ subcategory_id: null })
+    .eq('subcategory_id', id)
+    .eq('user_id', USER_ID)
+
+  if (clearError) throw new Error(`deleteSubcategory clear: ${clearError.message}`)
 }

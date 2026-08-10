@@ -1,10 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { writeFileSync, mkdirSync } from 'fs'
-import path from 'path'
-import { addClothing, initDb } from '@/lib/db'
+import { addClothing } from '@/lib/db'
+import { supabase, BUCKET } from '@/lib/supabase'
 import { Clothing } from '@/lib/types'
-
-initDb()
 
 export async function POST(request: NextRequest) {
   try {
@@ -20,26 +17,34 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const uploadsDir = path.join(process.cwd(), 'uploads')
-    mkdirSync(uploadsDir, { recursive: true })
-
-    const buffer = await file.arrayBuffer()
     const ext = file.name.split('.').pop()
-    const filename = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}.${ext}`
-    const filepath = path.join(uploadsDir, filename)
+    const imagePath = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}.${ext}`
 
-    writeFileSync(filepath, Buffer.from(buffer))
+    const { error: uploadError } = await supabase.storage
+      .from(BUCKET)
+      .upload(imagePath, file, {
+        contentType: file.type || 'application/octet-stream',
+        upsert: false,
+      })
+
+    if (uploadError) {
+      console.error('Storage upload error:', uploadError)
+      return NextResponse.json({ error: 'Upload failed' }, { status: 500 })
+    }
+
+    const { data: publicUrl } = supabase.storage.from(BUCKET).getPublicUrl(imagePath)
 
     const clothing: Clothing = {
       id: Date.now().toString(),
-      image_url: `/api/images/${filename}`,
+      image_url: publicUrl.publicUrl,
+      image_path: imagePath,
       type: type as any,
       subcategory_id: subcategoryId || null,
       created_at: new Date().toISOString(),
       is_dirty: false,
     }
 
-    const result = addClothing(clothing)
+    const result = await addClothing(clothing)
     return NextResponse.json(result, { status: 201 })
   } catch (error) {
     console.error('Upload error:', error)

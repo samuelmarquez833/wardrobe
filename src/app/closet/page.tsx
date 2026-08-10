@@ -20,6 +20,7 @@ export default function ClosetPage() {
     try {
       const res = await fetch('/api/clothes')
       const data = await res.json()
+      if (!Array.isArray(data)) throw new Error(data?.error || 'Bad response')
       setClothes(data)
     } catch (error) {
       console.error('Error fetching clothes:', error)
@@ -32,6 +33,7 @@ export default function ClosetPage() {
     try {
       const res = await fetch('/api/subcategories')
       const data = await res.json()
+      if (!Array.isArray(data)) throw new Error(data?.error || 'Bad response')
       setSubcategories(data)
     } catch (error) {
       console.error('Error fetching subcategories:', error)

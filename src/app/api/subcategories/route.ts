@@ -1,12 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getSubcategories, addSubcategory, initDb } from '@/lib/db'
+import { getSubcategories, addSubcategory } from '@/lib/db'
 import { Subcategory } from '@/lib/types'
-
-initDb()
 
 export async function GET() {
   try {
-    const subcategories = getSubcategories()
+    const subcategories = await getSubcategories()
     return NextResponse.json(subcategories)
   } catch (error) {
     console.error('GET subcategories error:', error)
@@ -35,7 +33,7 @@ export async function POST(request: NextRequest) {
       created_at: new Date().toISOString(),
     }
 
-    const result = addSubcategory(subcategory)
+    const result = await addSubcategory(subcategory)
     return NextResponse.json(result, { status: 201 })
   } catch (error) {
     console.error('POST subcategory error:', error)

@@ -33,11 +33,9 @@ yarn-error.log*
 # vercel
 .vercel
 
-# sqlite db + uploaded images (local dev data)
+# legacy local sqlite (data now lives in Supabase)
 /db/*.sqlite
 /db/*.sqlite-*
-/uploads/*
-!/uploads/.gitkeep
 
 # typescript
 *.tsbuildinfo

@@ -1,7 +1,5 @@
 import { NextResponse } from 'next/server'
-import { deleteSubcategory, initDb } from '@/lib/db'
-
-initDb()
+import { deleteSubcategory } from '@/lib/db'
 
 export async function DELETE(
   _request: Request,
@@ -9,7 +7,7 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params
-    deleteSubcategory(id)
+    await deleteSubcategory(id)
     return NextResponse.json({ success: true })
   } catch (error) {
     console.error('DELETE subcategory error:', error)

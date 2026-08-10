@@ -1,7 +1,5 @@
 import { NextResponse } from 'next/server'
-import { deleteOutfit, initDb } from '@/lib/db'
-
-initDb()
+import { deleteOutfit } from '@/lib/db'
 
 export async function DELETE(
   _request: Request,
@@ -9,7 +7,7 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params
-    deleteOutfit(id)
+    await deleteOutfit(id)
     return NextResponse.json({ success: true })
   } catch (error) {
     console.error('DELETE outfit error:', error)

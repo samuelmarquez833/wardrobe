@@ -1,11 +1,9 @@
 import { NextResponse } from 'next/server'
-import { getClothes, initDb } from '@/lib/db'
-
-initDb()
+import { getClothes } from '@/lib/db'
 
 export async function GET() {
   try {
-    const clothes = getClothes()
+    const clothes = await getClothes()
     return NextResponse.json(clothes)
   } catch (error) {
     console.error('GET clothes error:', error)

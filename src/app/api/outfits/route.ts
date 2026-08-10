@@ -1,12 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getOutfits, addOutfit, initDb } from '@/lib/db'
+import { getOutfits, addOutfit } from '@/lib/db'
 import { Outfit } from '@/lib/types'
-
-initDb()
 
 export async function GET() {
   try {
-    const outfits = getOutfits()
+    const outfits = await getOutfits()
     return NextResponse.json(outfits)
   } catch (error) {
     console.error('GET outfits error:', error)
@@ -27,7 +25,7 @@ export async function POST(request: NextRequest) {
       created_at: body.created_at || new Date().toISOString(),
     }
 
-    const result = addOutfit(outfit)
+    const result = await addOutfit(outfit)
     return NextResponse.json(result, { status: 201 })
   } catch (error) {
     console.error('POST outfit error:', error)

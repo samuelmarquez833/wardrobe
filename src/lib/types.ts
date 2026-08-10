@@ -1,6 +1,8 @@
 export interface Clothing {
   id: string
   image_url: string
+  /** Path inside the Supabase storage bucket, needed to delete the file. */
+  image_path?: string | null
   color?: string
   type: 'top' | 'bottom' | 'shoes' | 'accessory'
   subcategory_id?: string | null

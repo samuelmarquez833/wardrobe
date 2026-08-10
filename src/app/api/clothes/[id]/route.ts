@@ -1,9 +1,5 @@
 import { NextResponse } from 'next/server'
-import { deleteClothing, toggleDirty, getClothingById, initDb } from '@/lib/db'
-import { unlinkSync, existsSync } from 'fs'
-import path from 'path'
-
-initDb()
+import { deleteClothing, deleteImage, toggleDirty, getClothingById } from '@/lib/db'
 
 export async function DELETE(
   _request: Request,
@@ -11,17 +7,13 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params
-    const clothing = getClothingById(id)
+    const clothing = await getClothingById(id)
 
-    if (clothing?.image_url.startsWith('/api/images/')) {
-      const filename = clothing.image_url.replace('/api/images/', '')
-      const filepath = path.join(process.cwd(), 'uploads', filename)
-      if (existsSync(filepath)) {
-        unlinkSync(filepath)
-      }
+    if (clothing?.image_path) {
+      await deleteImage(clothing.image_path)
     }
 
-    deleteClothing(id)
+    await deleteClothing(id)
     return NextResponse.json({ success: true })
   } catch (error) {
     console.error('DELETE error:', error)
@@ -41,7 +33,7 @@ export async function PATCH(
     const body = await request.json()
 
     if (body.toggle_dirty) {
-      toggleDirty(id)
+      await toggleDirty(id)
     }
 
     return NextResponse.json({ success: true })
